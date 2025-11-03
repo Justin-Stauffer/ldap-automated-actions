@@ -1,0 +1,75 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Built binaries (not source directories)
+/ldap-test
+/ldap-test-linux
+/ldap-test-macos
+/ldap-test-windows
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.html
+coverage.txt
+*.cover
+
+# Go workspace files
+go.work
+go.work.sum
+
+# Dependency directories
+vendor/
+
+# Log files
+logs/
+*.log
+
+# Configuration files with sensitive data
+*-local.yaml
+*-prod.yaml
+*.local.yaml
+secrets.yaml
+.env
+.env.*
+!.env.example
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Debug and profiling
+__debug_bin
+*.prof
+*.pprof
+.dlv/
+
+# Build artifacts
+dist/
+build/
+bin/
+
+# Temporary files
+tmp/
+temp/
+*.bak
+*.backup
+
+# Air (live reload tool) temporary files
+tmp/
+.air/
+
+# Test cache
+.test/
+testdata/output/

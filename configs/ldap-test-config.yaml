@@ -1,0 +1,33 @@
+# LDAP Operations Test Suite Configuration
+
+# LDAP Server Connection Settings
+host: "ldap.example.com"
+port: 389
+bind_dn: "cn=admin,dc=example,dc=com"
+bind_password: "your_password_here"
+base_dn: "dc=example,dc=com"
+
+# TLS/SSL Settings
+use_tls: false     # Use LDAPS (LDAP over TLS) on port 636
+start_tls: false   # Use StartTLS to upgrade connection
+timeout: 30        # Connection timeout in seconds
+
+# Test Settings
+test_prefix: "ldap-test"        # Prefix for test entries
+test_suite: "all"               # Test suite: all|bind|search|add|modify|compare|modifydn|delete|abandon
+concurrent: 1                   # Number of concurrent test workers (1 = sequential)
+dry_run: false                  # Preview operations without executing
+
+# Logging Settings
+log_level: "info"               # Log level: error|warn|info|debug|trace
+log_file: "./logs/ldap-test.log"  # Log file path (supports timestamp: ldap-test-{timestamp}.log)
+verbose: false                  # Enable verbose logging (overrides log_level to trace)
+
+# Cleanup Settings
+cleanup: false                  # Delete test data after run (default: preserve data)
+cleanup_on_success: false       # Delete test data only if all tests pass
+list_test_data: false           # List existing test data and exit
+cleanup_older_than: ""          # Cleanup data older than duration (e.g., "7d", "24h")
+
+# Report Settings
+report_format: "console"        # Output format: console|json|xml
