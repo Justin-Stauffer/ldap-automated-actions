@@ -20,6 +20,12 @@ type Config struct {
 	StartTLS     bool   `yaml:"start_tls"`
 	Timeout      int    `yaml:"timeout"` // seconds
 
+	// TLS/Certificate Settings
+	TrustStorePath         string `yaml:"trust_store_path"`          // Path to PKCS12 trust store file
+	TrustStorePassword     string `yaml:"trust_store_password"`      // Trust store password
+	TrustStorePasswordFile string `yaml:"trust_store_password_file"` // File containing trust store password
+	InsecureSkipVerify     bool   `yaml:"insecure_skip_verify"`      // Skip certificate verification (not recommended for production)
+
 	// Test Settings
 	TestPrefix string `yaml:"test_prefix"`
 	Concurrent int    `yaml:"concurrent"`

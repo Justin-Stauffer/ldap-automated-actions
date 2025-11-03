@@ -2,19 +2,89 @@ package ldap
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	"ldap-automated-actions/internal/config"
 	"ldap-automated-actions/internal/logger"
 
 	"github.com/go-ldap/ldap/v3"
+	"software.sslmate.com/src/go-pkcs12"
 )
 
 // Connection represents an LDAP connection wrapper
 type Connection struct {
 	conn   *ldap.Conn
 	config *config.Config
+}
+
+// buildTLSConfig creates a TLS configuration based on the provided config
+func buildTLSConfig(cfg *config.Config) (*tls.Config, error) {
+	tlsConfig := &tls.Config{
+		ServerName:         cfg.Host,
+		InsecureSkipVerify: cfg.InsecureSkipVerify,
+	}
+
+	// If trust store is specified, load it
+	if cfg.TrustStorePath != "" {
+		logger.Debug("TLS", "Loading PKCS12 trust store", "path", cfg.TrustStorePath)
+
+		// Read trust store password
+		password := cfg.TrustStorePassword
+		if cfg.TrustStorePasswordFile != "" {
+			logger.Debug("TLS", "Reading trust store password from file", "file", cfg.TrustStorePasswordFile)
+			passwordBytes, err := os.ReadFile(cfg.TrustStorePasswordFile)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read trust store password file: %w", err)
+			}
+			password = strings.TrimSpace(string(passwordBytes))
+		}
+
+		// Read PKCS12 file
+		p12Data, err := os.ReadFile(cfg.TrustStorePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read trust store file: %w", err)
+		}
+
+		// Decode PKCS12
+		blocks, err := pkcs12.ToPEM(p12Data, password)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode PKCS12 trust store: %w", err)
+		}
+
+		// Create certificate pool
+		certPool := x509.NewCertPool()
+		certsAdded := 0
+
+		for _, block := range blocks {
+			if block.Type == "CERTIFICATE" {
+				cert, err := x509.ParseCertificate(block.Bytes)
+				if err != nil {
+					logger.Warn("TLS", "Failed to parse certificate in trust store", "error", err)
+					continue
+				}
+				certPool.AddCert(cert)
+				certsAdded++
+				logger.Trace("TLS", "Added certificate to pool", "subject", cert.Subject.CommonName)
+			}
+		}
+
+		if certsAdded > 0 {
+			tlsConfig.RootCAs = certPool
+			logger.Info("TLS", "Loaded trust store", "certificates", certsAdded)
+		} else {
+			logger.Warn("TLS", "No certificates found in trust store")
+		}
+	}
+
+	if cfg.InsecureSkipVerify {
+		logger.Warn("TLS", "Certificate verification is DISABLED - not recommended for production")
+	}
+
+	return tlsConfig, nil
 }
 
 // NewConnection creates a new LDAP connection
@@ -28,10 +98,12 @@ func NewConnection(cfg *config.Config) (*Connection, error) {
 
 	if cfg.UseTLS {
 		// Use LDAPS (LDAP over TLS)
-		tlsConfig := &tls.Config{
-			ServerName: cfg.Host,
-			// InsecureSkipVerify: true, // TODO: Make this configurable for testing
+		tlsConfig, err := buildTLSConfig(cfg)
+		if err != nil {
+			logger.Error("Connection", "Failed to build TLS configuration", "error", err)
+			return nil, fmt.Errorf("failed to build TLS config: %w", err)
 		}
+
 		conn, err = ldap.DialTLS("tcp", address, tlsConfig)
 	} else {
 		// Use plain LDAP
@@ -50,9 +122,13 @@ func NewConnection(cfg *config.Config) (*Connection, error) {
 
 	// Use StartTLS if configured
 	if cfg.StartTLS && !cfg.UseTLS {
-		tlsConfig := &tls.Config{
-			ServerName: cfg.Host,
+		tlsConfig, err := buildTLSConfig(cfg)
+		if err != nil {
+			conn.Close()
+			logger.Error("Connection", "Failed to build TLS configuration for StartTLS", "error", err)
+			return nil, fmt.Errorf("failed to build TLS config: %w", err)
 		}
+
 		if err := conn.StartTLS(tlsConfig); err != nil {
 			conn.Close()
 			logger.Error("Connection", "Failed to start TLS", "error", err)

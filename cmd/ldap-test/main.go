@@ -25,6 +25,11 @@ func main() {
 	startTLS := pflag.Bool("start-tls", false, "Use StartTLS")
 	timeout := pflag.Int("timeout", 30, "Connection timeout in seconds")
 
+	trustStorePath := pflag.String("trust-store-path", "", "Path to PKCS12 trust store file (for custom certificates)")
+	trustStorePassword := pflag.String("trust-store-password", "", "Trust store password")
+	trustStorePasswordFile := pflag.String("trust-store-password-file", "", "File containing trust store password")
+	insecureSkipVerify := pflag.Bool("insecure-skip-verify", false, "Skip TLS certificate verification (not recommended)")
+
 	testPrefix := pflag.String("test-prefix", "ldap-test", "Prefix for test entries")
 	testSuite := pflag.String("test-suite", "all", "Test suite to run: all|bind|search|add|modify|compare|modifydn|delete|abandon")
 	concurrent := pflag.Int("concurrent", 1, "Number of concurrent test workers")
@@ -93,6 +98,18 @@ func main() {
 	}
 	if pflag.Lookup("timeout").Changed {
 		cfg.Timeout = *timeout
+	}
+	if *trustStorePath != "" {
+		cfg.TrustStorePath = *trustStorePath
+	}
+	if *trustStorePassword != "" {
+		cfg.TrustStorePassword = *trustStorePassword
+	}
+	if *trustStorePasswordFile != "" {
+		cfg.TrustStorePasswordFile = *trustStorePasswordFile
+	}
+	if pflag.Lookup("insecure-skip-verify").Changed {
+		cfg.InsecureSkipVerify = *insecureSkipVerify
 	}
 	if *testPrefix != "" {
 		cfg.TestPrefix = *testPrefix

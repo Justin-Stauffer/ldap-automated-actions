@@ -1,10 +1,10 @@
 # LDAP Operations Test Suite Configuration
 
 # LDAP Server Connection Settings
-host: "ldap.example.com"
-port: 389
+host: "localhost"
+port: 1389
 bind_dn: "cn=admin,dc=example,dc=com"
-bind_password: "your_password_here"
+bind_password: "password"
 base_dn: "dc=example,dc=com"
 
 # TLS/SSL Settings
@@ -12,15 +12,21 @@ use_tls: false     # Use LDAPS (LDAP over TLS) on port 636
 start_tls: false   # Use StartTLS to upgrade connection
 timeout: 30        # Connection timeout in seconds
 
+# Certificate/Trust Store Settings (for custom certificates like PingDS)
+trust_store_path: ""                  # Path to PKCS12 trust store file (e.g., C:\path\to\opendj\config\keystore)
+trust_store_password: ""              # Trust store password (use trust_store_password_file for security)
+trust_store_password_file: ""         # File containing trust store password (e.g., C:\path\to\opendj\config\keystore.pin)
+insecure_skip_verify: false           # Skip certificate verification (NOT recommended for production)
+
 # Test Settings
-test_prefix: "ldap-test"        # Prefix for test entries
+test_prefix: "ioa-ldap-test"        # Prefix for test entries
 test_suite: "all"               # Test suite: all|bind|search|add|modify|compare|modifydn|delete|abandon
 concurrent: 1                   # Number of concurrent test workers (1 = sequential)
 dry_run: false                  # Preview operations without executing
 
 # Logging Settings
-log_level: "info"               # Log level: error|warn|info|debug|trace
-log_file: "./logs/ldap-test.log"  # Log file path (supports timestamp: ldap-test-{timestamp}.log)
+log_level: "trace"               # Log level: error|warn|info|debug|trace
+log_file: "./logs/ioa-ldap-test.log"  # Log file path (supports timestamp: ldap-test-{timestamp}.log)
 verbose: false                  # Enable verbose logging (overrides log_level to trace)
 
 # Cleanup Settings
@@ -30,4 +36,4 @@ list_test_data: false           # List existing test data and exit
 cleanup_older_than: ""          # Cleanup data older than duration (e.g., "7d", "24h")
 
 # Report Settings
-report_format: "console"        # Output format: console|json|xml
+report_format: "json"        # Output format: console|json|xml
