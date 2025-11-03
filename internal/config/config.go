@@ -24,6 +24,8 @@ type Config struct {
 	TrustStorePath         string `yaml:"trust_store_path"`          // Path to PKCS12 trust store file
 	TrustStorePassword     string `yaml:"trust_store_password"`      // Trust store password
 	TrustStorePasswordFile string `yaml:"trust_store_password_file"` // File containing trust store password
+	TLSCertFile            string `yaml:"tls_cert_file"`             // Path to PEM certificate file (alternative to PKCS12)
+	TLSCAFile              string `yaml:"tls_ca_file"`               // Path to PEM CA certificate file
 	InsecureSkipVerify     bool   `yaml:"insecure_skip_verify"`      // Skip certificate verification (not recommended for production)
 
 	// Test Settings

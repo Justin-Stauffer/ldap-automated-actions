@@ -28,8 +28,51 @@ func buildTLSConfig(cfg *config.Config) (*tls.Config, error) {
 		InsecureSkipVerify: cfg.InsecureSkipVerify,
 	}
 
-	// If trust store is specified, load it
-	if cfg.TrustStorePath != "" {
+	// Priority 1: Load PEM certificate files (more compatible)
+	if cfg.TLSCertFile != "" || cfg.TLSCAFile != "" {
+		certPool := x509.NewCertPool()
+		certsAdded := 0
+
+		// Load CA certificate if specified
+		if cfg.TLSCAFile != "" {
+			logger.Debug("TLS", "Loading PEM CA certificate", "path", cfg.TLSCAFile)
+			caPEM, err := os.ReadFile(cfg.TLSCAFile)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read CA certificate file: %w", err)
+			}
+
+			if ok := certPool.AppendCertsFromPEM(caPEM); !ok {
+				logger.Warn("TLS", "No certificates found in CA file", "file", cfg.TLSCAFile)
+			} else {
+				certsAdded++
+				logger.Trace("TLS", "Added CA certificate to pool")
+			}
+		}
+
+		// Load certificate file if specified
+		if cfg.TLSCertFile != "" {
+			logger.Debug("TLS", "Loading PEM certificate", "path", cfg.TLSCertFile)
+			certPEM, err := os.ReadFile(cfg.TLSCertFile)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read certificate file: %w", err)
+			}
+
+			if ok := certPool.AppendCertsFromPEM(certPEM); !ok {
+				logger.Warn("TLS", "No certificates found in certificate file", "file", cfg.TLSCertFile)
+			} else {
+				certsAdded++
+				logger.Trace("TLS", "Added certificate to pool")
+			}
+		}
+
+		if certsAdded > 0 {
+			tlsConfig.RootCAs = certPool
+			logger.Info("TLS", "Loaded PEM certificates", "files", certsAdded)
+		} else {
+			logger.Warn("TLS", "No valid certificates loaded from PEM files")
+		}
+	} else if cfg.TrustStorePath != "" {
+		// Priority 2: Load PKCS12 trust store (fallback for compatibility)
 		logger.Debug("TLS", "Loading PKCS12 trust store", "path", cfg.TrustStorePath)
 
 		// Read trust store password
@@ -74,7 +117,7 @@ func buildTLSConfig(cfg *config.Config) (*tls.Config, error) {
 
 		if certsAdded > 0 {
 			tlsConfig.RootCAs = certPool
-			logger.Info("TLS", "Loaded trust store", "certificates", certsAdded)
+			logger.Info("TLS", "Loaded PKCS12 trust store", "certificates", certsAdded)
 		} else {
 			logger.Warn("TLS", "No certificates found in trust store")
 		}

@@ -28,6 +28,8 @@ func main() {
 	trustStorePath := pflag.String("trust-store-path", "", "Path to PKCS12 trust store file (for custom certificates)")
 	trustStorePassword := pflag.String("trust-store-password", "", "Trust store password")
 	trustStorePasswordFile := pflag.String("trust-store-password-file", "", "File containing trust store password")
+	tlsCertFile := pflag.String("tls-cert-file", "", "Path to PEM certificate file (alternative to PKCS12)")
+	tlsCAFile := pflag.String("tls-ca-file", "", "Path to PEM CA certificate file")
 	insecureSkipVerify := pflag.Bool("insecure-skip-verify", false, "Skip TLS certificate verification (not recommended)")
 
 	testPrefix := pflag.String("test-prefix", "ldap-test", "Prefix for test entries")
@@ -107,6 +109,12 @@ func main() {
 	}
 	if *trustStorePasswordFile != "" {
 		cfg.TrustStorePasswordFile = *trustStorePasswordFile
+	}
+	if *tlsCertFile != "" {
+		cfg.TLSCertFile = *tlsCertFile
+	}
+	if *tlsCAFile != "" {
+		cfg.TLSCAFile = *tlsCAFile
 	}
 	if pflag.Lookup("insecure-skip-verify").Changed {
 		cfg.InsecureSkipVerify = *insecureSkipVerify
