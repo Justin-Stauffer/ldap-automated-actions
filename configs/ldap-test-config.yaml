@@ -24,6 +24,7 @@ trust_store_password_file: ""         # File containing trust store password (e.
 
 # Testing Only
 insecure_skip_verify: false           # Skip certificate verification (NOT recommended for production)
+tls_key_log_file: ""                  # Path to TLS key log file for Wireshark decryption (debugging only, writes keys in plaintext)
 
 # Test Settings
 test_prefix: "ioa-ldap-test"        # Prefix for test entries

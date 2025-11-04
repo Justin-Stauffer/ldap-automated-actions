@@ -127,6 +127,24 @@ func buildTLSConfig(cfg *config.Config) (*tls.Config, error) {
 		logger.Warn("TLS", "Certificate verification is DISABLED - not recommended for production")
 	}
 
+	// Enable TLS key logging for Wireshark decryption if configured
+	keyLogPath := cfg.TLSKeyLogFile
+	if keyLogPath == "" {
+		// Check SSLKEYLOGFILE environment variable as fallback
+		keyLogPath = os.Getenv("SSLKEYLOGFILE")
+	}
+
+	if keyLogPath != "" {
+		keyLogFile, err := os.OpenFile(keyLogPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+		if err != nil {
+			logger.Warn("TLS", "Failed to open TLS key log file", "error", err, "path", keyLogPath)
+		} else {
+			tlsConfig.KeyLogWriter = keyLogFile
+			logger.Info("TLS", "TLS key logging enabled for Wireshark decryption", "file", keyLogPath)
+			logger.Warn("TLS", "TLS key logging is enabled - use only for debugging, keys will be written in plaintext")
+		}
+	}
+
 	return tlsConfig, nil
 }
 

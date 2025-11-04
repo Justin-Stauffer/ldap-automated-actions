@@ -27,6 +27,7 @@ type Config struct {
 	TLSCertFile            string `yaml:"tls_cert_file"`             // Path to PEM certificate file (alternative to PKCS12)
 	TLSCAFile              string `yaml:"tls_ca_file"`               // Path to PEM CA certificate file
 	InsecureSkipVerify     bool   `yaml:"insecure_skip_verify"`      // Skip certificate verification (not recommended for production)
+	TLSKeyLogFile          string `yaml:"tls_key_log_file"`          // Path to TLS key log file for Wireshark decryption (debugging only)
 
 	// Test Settings
 	TestPrefix string `yaml:"test_prefix"`

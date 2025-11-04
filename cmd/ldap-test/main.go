@@ -31,6 +31,7 @@ func main() {
 	tlsCertFile := pflag.String("tls-cert-file", "", "Path to PEM certificate file (alternative to PKCS12)")
 	tlsCAFile := pflag.String("tls-ca-file", "", "Path to PEM CA certificate file")
 	insecureSkipVerify := pflag.Bool("insecure-skip-verify", false, "Skip TLS certificate verification (not recommended)")
+	tlsKeyLogFile := pflag.String("tls-key-log-file", "", "Path to TLS key log file for Wireshark decryption (debugging only)")
 
 	testPrefix := pflag.String("test-prefix", "ldap-test", "Prefix for test entries")
 	testSuite := pflag.String("test-suite", "all", "Test suite to run: all|bind|search|add|modify|compare|modifydn|delete|abandon")
@@ -121,6 +122,9 @@ func main() {
 	}
 	if pflag.Lookup("insecure-skip-verify").Changed {
 		cfg.InsecureSkipVerify = *insecureSkipVerify
+	}
+	if *tlsKeyLogFile != "" {
+		cfg.TLSKeyLogFile = *tlsKeyLogFile
 	}
 	if *testPrefix != "" {
 		cfg.TestPrefix = *testPrefix
