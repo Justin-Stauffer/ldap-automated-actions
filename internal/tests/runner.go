@@ -2,7 +2,10 @@ package tests
 
 import (
 	"fmt"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"ldap-automated-actions/internal/config"
@@ -13,12 +16,25 @@ import (
 	ldaplib "github.com/go-ldap/ldap/v3"
 )
 
+// LoopStats tracks statistics across multiple test runs
+type LoopStats struct {
+	TotalRuns      int
+	SuccessfulRuns int
+	FailedRuns     int
+	TotalTests     int
+	TotalPassed    int
+	TotalFailed    int
+	TotalDuration  time.Duration
+	StartTime      time.Time
+}
+
 // Runner orchestrates the execution of all LDAP tests
 type Runner struct {
 	config  *config.Config
 	conn    *ldap.Connection
 	tracker *tracker.Tracker
 	suite   *TestSuite
+	loopStats *LoopStats
 }
 
 // NewRunner creates a new test runner
@@ -30,11 +46,119 @@ func NewRunner(cfg *config.Config) *Runner {
 			Name:    "LDAP Operations Test Suite",
 			Results: make([]TestResult, 0),
 		},
+		loopStats: &LoopStats{
+			StartTime: time.Now(),
+		},
 	}
 }
 
 // Run executes the complete test suite
 func (r *Runner) Run() error {
+	// Check if loop mode is enabled
+	if r.config.Loop {
+		return r.RunLoop()
+	}
+
+	// Single run mode
+	return r.runOnce()
+}
+
+// RunLoop executes tests continuously with statistics tracking
+func (r *Runner) RunLoop() error {
+	logger.Info("TestRunner", "Starting LDAP operations test suite in LOOP mode")
+
+	if r.config.LoopCount > 0 {
+		logger.Info("TestRunner", "Will run for iterations", "count", r.config.LoopCount)
+	} else {
+		logger.Info("TestRunner", "Running indefinitely (Ctrl+C to stop)")
+	}
+
+	if r.config.LoopDelay > 0 {
+		logger.Info("TestRunner", "Delay between iterations", "seconds", r.config.LoopDelay)
+	}
+
+	// Setup signal handling for graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	stopChan := make(chan bool)
+
+	go func() {
+		<-sigChan
+		logger.Info("TestRunner", "Received interrupt signal, stopping after current iteration...")
+		stopChan <- true
+	}()
+
+	iteration := 0
+	for {
+		iteration++
+
+		// Check if we should stop
+		select {
+		case <-stopChan:
+			logger.Info("TestRunner", "Stopping loop mode")
+			r.reportLoopStats()
+			return nil
+		default:
+		}
+
+		// Check iteration limit
+		if r.config.LoopCount > 0 && iteration > r.config.LoopCount {
+			logger.Info("TestRunner", "Completed all iterations", "count", r.config.LoopCount)
+			r.reportLoopStats()
+			return nil
+		}
+
+		logger.Info("TestRunner", fmt.Sprintf("=== Starting iteration %d ===", iteration))
+
+		// Run single test iteration
+		err := r.runOnce()
+
+		// Update statistics
+		r.loopStats.TotalRuns++
+		if err != nil {
+			r.loopStats.FailedRuns++
+			logger.Error("TestRunner", "Iteration failed", "iteration", iteration, "error", err)
+		} else {
+			r.loopStats.SuccessfulRuns++
+		}
+
+		// Aggregate test statistics
+		total, passed, failed, duration := r.suite.GetStats()
+		r.loopStats.TotalTests += total
+		r.loopStats.TotalPassed += passed
+		r.loopStats.TotalFailed += failed
+		r.loopStats.TotalDuration += duration
+
+		// Print iteration summary
+		fmt.Printf("\n[Iteration %d] Tests: %d passed, %d failed (%.2fs)\n",
+			iteration, passed, failed, duration.Seconds())
+
+		// Print cumulative statistics
+		fmt.Printf("[Cumulative] Runs: %d, Success: %d, Failed: %d, Total Tests: %d/%d (%.1f%% pass rate)\n\n",
+			r.loopStats.TotalRuns,
+			r.loopStats.SuccessfulRuns,
+			r.loopStats.FailedRuns,
+			r.loopStats.TotalPassed,
+			r.loopStats.TotalTests,
+			float64(r.loopStats.TotalPassed)/float64(r.loopStats.TotalTests)*100)
+
+		// Reset suite for next iteration
+		r.suite = &TestSuite{
+			Name:    "LDAP Operations Test Suite",
+			Results: make([]TestResult, 0),
+		}
+		r.tracker.Clear()
+
+		// Delay before next iteration
+		if r.config.LoopDelay > 0 {
+			logger.Debug("TestRunner", "Waiting before next iteration", "seconds", r.config.LoopDelay)
+			time.Sleep(time.Duration(r.config.LoopDelay) * time.Second)
+		}
+	}
+}
+
+// runOnce executes a single test run
+func (r *Runner) runOnce() error {
 	logger.Info("TestRunner", "Starting LDAP operations test suite")
 	r.suite.StartTime = time.Now()
 
@@ -58,8 +182,10 @@ func (r *Runner) Run() error {
 
 	r.suite.EndTime = time.Now()
 
-	// Phase 5: Report results
-	r.reportResults()
+	// Phase 5: Report results (only if not in loop mode)
+	if !r.config.Loop {
+		r.reportResults()
+	}
 
 	return nil
 }
@@ -282,4 +408,49 @@ func (r *Runner) GetExitCode() int {
 		return 0
 	}
 	return 1
+}
+
+// reportLoopStats prints cumulative statistics from loop mode
+func (r *Runner) reportLoopStats() {
+	fmt.Println("\n" + strings.Repeat("=", 80))
+	fmt.Println("LDAP OPERATIONS TEST SUITE - LOOP MODE SUMMARY")
+	fmt.Println(strings.Repeat("=", 80))
+
+	elapsed := time.Since(r.loopStats.StartTime)
+
+	fmt.Printf("Total Runtime:        %s\n", elapsed.Round(time.Second))
+	fmt.Printf("Total Iterations:     %d\n", r.loopStats.TotalRuns)
+	fmt.Printf("Successful Runs:      %d (%.1f%%)\n",
+		r.loopStats.SuccessfulRuns,
+		float64(r.loopStats.SuccessfulRuns)/float64(r.loopStats.TotalRuns)*100)
+	fmt.Printf("Failed Runs:          %d (%.1f%%)\n",
+		r.loopStats.FailedRuns,
+		float64(r.loopStats.FailedRuns)/float64(r.loopStats.TotalRuns)*100)
+	fmt.Println(strings.Repeat("-", 80))
+	fmt.Printf("Total Tests Executed: %d\n", r.loopStats.TotalTests)
+	fmt.Printf("Tests Passed:         %d (%.1f%%)\n",
+		r.loopStats.TotalPassed,
+		float64(r.loopStats.TotalPassed)/float64(r.loopStats.TotalTests)*100)
+	fmt.Printf("Tests Failed:         %d (%.1f%%)\n",
+		r.loopStats.TotalFailed,
+		float64(r.loopStats.TotalFailed)/float64(r.loopStats.TotalTests)*100)
+	fmt.Println(strings.Repeat("-", 80))
+	fmt.Printf("Total Test Time:      %s\n", r.loopStats.TotalDuration.Round(time.Millisecond))
+	fmt.Printf("Average Per Run:      %s\n", time.Duration(r.loopStats.TotalDuration.Nanoseconds()/int64(r.loopStats.TotalRuns)).Round(time.Millisecond))
+
+	if r.loopStats.TotalTests > 0 {
+		avgTestTime := time.Duration(r.loopStats.TotalDuration.Nanoseconds() / int64(r.loopStats.TotalTests))
+		fmt.Printf("Average Per Test:     %s\n", avgTestTime.Round(time.Millisecond))
+	}
+
+	fmt.Println(strings.Repeat("=", 80))
+
+	if r.loopStats.FailedRuns == 0 {
+		fmt.Println("✓ ALL RUNS COMPLETED SUCCESSFULLY")
+	} else {
+		fmt.Printf("✗ %d RUNS FAILED\n", r.loopStats.FailedRuns)
+	}
+
+	fmt.Println(strings.Repeat("=", 80))
+	logger.Info("TestRunner", "Loop mode completed", "totalRuns", r.loopStats.TotalRuns, "successful", r.loopStats.SuccessfulRuns, "failed", r.loopStats.FailedRuns)
 }

@@ -33,6 +33,9 @@ type Config struct {
 	Concurrent int    `yaml:"concurrent"`
 	TestSuite  string `yaml:"test_suite"`
 	DryRun     bool   `yaml:"dry_run"`
+	Loop       bool   `yaml:"loop"`        // Run tests continuously
+	LoopDelay  int    `yaml:"loop_delay"`  // Delay between loop iterations in seconds
+	LoopCount  int    `yaml:"loop_count"`  // Number of iterations (0 = infinite)
 
 	// Logging Settings
 	LogLevel  string `yaml:"log_level"`

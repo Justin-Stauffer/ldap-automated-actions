@@ -36,6 +36,9 @@ func main() {
 	testSuite := pflag.String("test-suite", "all", "Test suite to run: all|bind|search|add|modify|compare|modifydn|delete|abandon")
 	concurrent := pflag.Int("concurrent", 1, "Number of concurrent test workers")
 	dryRun := pflag.Bool("dry-run", false, "Preview operations without executing")
+	loop := pflag.Bool("loop", false, "Run tests continuously (Ctrl+C to stop)")
+	loopDelay := pflag.Int("loop-delay", 0, "Delay between loop iterations in seconds")
+	loopCount := pflag.Int("loop-count", 0, "Number of loop iterations (0 = infinite)")
 
 	logLevel := pflag.String("log-level", "info", "Log level: error|warn|info|debug|trace")
 	logFile := pflag.String("log-file", "", "Log file path (default: ./logs/ldap-test-{timestamp}.log)")
@@ -130,6 +133,15 @@ func main() {
 	}
 	if pflag.Lookup("dry-run").Changed {
 		cfg.DryRun = *dryRun
+	}
+	if pflag.Lookup("loop").Changed {
+		cfg.Loop = *loop
+	}
+	if pflag.Lookup("loop-delay").Changed {
+		cfg.LoopDelay = *loopDelay
+	}
+	if pflag.Lookup("loop-count").Changed {
+		cfg.LoopCount = *loopCount
 	}
 	if *logLevel != "" {
 		cfg.LogLevel = *logLevel

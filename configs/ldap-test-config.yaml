@@ -31,6 +31,11 @@ test_suite: "all"               # Test suite: all|bind|search|add|modify|compare
 concurrent: 1                   # Number of concurrent test workers (1 = sequential)
 dry_run: false                  # Preview operations without executing
 
+# Loop/Continuous Mode Settings
+loop: false                     # Run tests continuously (Ctrl+C to stop)
+loop_delay: 0                   # Delay between iterations in seconds (0 = no delay)
+loop_count: 0                   # Number of iterations (0 = infinite, run until Ctrl+C)
+
 # Logging Settings
 log_level: "trace"               # Log level: error|warn|info|debug|trace
 log_file: "./logs/ioa-ldap-test.log"  # Log file path (supports timestamp: ldap-test-{timestamp}.log)
